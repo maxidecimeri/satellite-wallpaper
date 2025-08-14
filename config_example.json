@@ -1,0 +1,9 @@
+{
+  "output_base_dir": "./output",
+  "static_dir": "./static_backgrounds",
+  "logs_dir": "./logs",
+  "wallpaper_engine_path": "C:/path/to/wallpaper_engine.exe",
+  "steam_protocol": "steam://rungameid/431960",
+  "deploy_script_name": "deploy-wallpaper.py",
+  "homepage_url": "https://rammb2.cira.colostate.edu/"
+}
