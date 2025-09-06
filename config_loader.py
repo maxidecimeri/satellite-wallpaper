@@ -22,7 +22,7 @@ def build_view_key(view: dict) -> str:
 
 # ---------- Config load ----------
 _ROOT = Path(__file__).parent
-_ENV_PATH = _ROOT / "env_local.json"
+_ENV_PATH = _ROOT / "config_local.json"
 
 # Load local config (user-specific) or fall back to repo-relative defaults
 if _ENV_PATH.exists():

@@ -2,162 +2,213 @@
 import os
 import json
 import shutil
+import errno
 from json import JSONDecodeError
 from pathlib import Path
-from config_loader import OUTPUT_BASE_DIR, build_view_key, canonicalize  # shared helpers
+from config_loader import OUTPUT_BASE_DIR, build_view_key, canonicalize
 
 PROJECTS_JSON_PATH = Path("projects.json")
 VIEWS_JSON_PATH = Path("views_config.json")
+RUNTIME_CFG_PATH = Path("runtime_config.json")
 
-# Optional: set STAGE_ONLY=1 to skip copying into Wallpaper Engine (creates/updates staging only)
-STAGE_ONLY = os.environ.get("STAGE_ONLY", "0") == "1"
+# env overrides (optional)
+ENV_STAGE_ONLY = os.environ.get("STAGE_ONLY", "")
+ENV_CLEAN = os.environ.get("CLEAN_MATERIALS", "")
+ENV_HOLD_LAST = os.environ.get("HOLD_LAST_FRAMES", "")
+ENV_HOLD_MODE = os.environ.get("HOLD_MODE", "")
 
+def load_runtime_cfg():
+    cfg = {
+        "defaults": {
+            "fps": 2.0,
+            "hold_last_sec": 0,
+            "clean_materials": False,
+            "stage_only": False,
+            "hold_mode": "hardlink",  # "hardlink" | "copy"
+        },
+        "views": {}
+    }
+    if RUNTIME_CFG_PATH.exists():
+        try:
+            cfg.update(json.loads(RUNTIME_CFG_PATH.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+    return cfg
+
+def effective_opts(view_key: str, runtime_cfg: dict):
+    d = dict(runtime_cfg.get("defaults", {}))
+    d.update(runtime_cfg.get("views", {}).get(view_key, {}))
+    # env overrides
+    if ENV_CLEAN:
+        d["clean_materials"] = ENV_CLEAN == "1"
+    if ENV_STAGE_ONLY:
+        d["stage_only"] = ENV_STAGE_ONLY == "1"
+    if ENV_HOLD_LAST:
+        try:
+            # If user gave a number, interpret as “frames”; convert to seconds using fps
+            frames = int(ENV_HOLD_LAST)
+            d["hold_last_sec"] = frames / float(d.get("fps", 2.0))
+        except Exception:
+            pass
+    if ENV_HOLD_MODE:
+        d["hold_mode"] = ENV_HOLD_MODE
+    return d
 
 def find_parent_dir_for_key(output_root: Path, canonical_key: str) -> Path | None:
-    """
-    Return the folder under output_root that corresponds to the canonical_key.
-    Primary match: exact folder named canonical_key.
-    Fallback: scan subfolders and match canonicalized names (handles legacy folders with symbols like µ).
-    """
     direct = output_root / canonical_key
     if direct.is_dir():
         return direct
-
-    # Fallback scan (legacy symbols, mixed unicode)
     for child in output_root.iterdir():
-        if not child.is_dir():
-            continue
-        if canonicalize(child.name) == canonical_key:
+        if child.is_dir() and canonicalize(child.name) == canonical_key:
             return child
-
     return None
 
+def try_hardlink(src: Path, dst: Path) -> bool:
+    try:
+        if dst.exists():
+            dst.unlink()
+        os.link(src, dst)  # NTFS hardlink
+        return True
+    except OSError as e:
+        # Windows returns errno for cross-device or other issues
+        if e.errno in (errno.EXDEV, errno.EPERM, errno.EACCES, errno.EIO):
+            return False
+        # As a safe default, say False on unexpected errors too
+        return False
 
-def stage_from_latest_run(parent_dir: Path) -> Path | None:
-    """
-    Create/update a staging folder from the latest timestamped run folder.
-    Returns the staging path or None if unavailable.
-    """
-    # pick latest timestamped run by mtime (not by name)
+def copy_or_link(src: Path, dst: Path, use_hardlink: bool) -> None:
+    if use_hardlink:
+        if try_hardlink(src, dst):
+            return
+    # fallback to real copy
+    shutil.copy2(src, dst)
+
+def stage_from_latest_run(parent_dir: Path, fps: float, hold_last_sec: float, hold_mode: str) -> Path | None:
     all_runs = [d for d in parent_dir.iterdir() if d.is_dir() and d.name != 'staging']
     if not all_runs:
-        print(f"  ❌ No downloaded frame sets found in {parent_dir}")
+        print(f"  [FAIL] No downloaded frame sets found in {parent_dir}")
         return None
 
     latest_run_folder = max(all_runs, key=lambda d: d.stat().st_mtime)
-    print(f"  [1/4] Latest source frames: {latest_run_folder.name}")
+    print(f"  [1/4] Source: {latest_run_folder.name}")
 
-    # staging
     staging_dir = parent_dir / "staging"
     staging_dir.mkdir(exist_ok=True)
 
-    # copy & rename
-    print(f"  [2/4] Staging and renaming frames...")
+    # clean staging before restage
+    for p in staging_dir.glob("frame_*.png"):
+        try: p.unlink()
+        except: pass
+
     source_files = sorted(latest_run_folder.glob("*.png"))
     if not source_files:
-        print("  ❌ No .png frames found in the latest folder.")
+        print("  [FAIL] No .png frames in latest folder.")
         return None
 
-    for i, frame_path in enumerate(source_files):
-        (staging_dir / f"frame_{i:03d}.png").write_bytes(frame_path.read_bytes())
-    print(f"  ✅ Staged and renamed {len(source_files)} frames.")
+    use_hardlink = (hold_mode == "hardlink")
 
-    # Copy manifest for provenance if present
+    # rename into staging via hardlink (space-efficient)
+    for i, frame_path in enumerate(source_files):
+        dst = staging_dir / f"frame_{i:03d}.png"
+        copy_or_link(frame_path, dst, use_hardlink)
+
+    # compute “hold” count from seconds × fps
+    hold_frames = max(0, int(round(hold_last_sec * max(0.1, float(fps)))))
+    if hold_frames > 0:
+        last_idx = len(source_files) - 1
+        last_frame = staging_dir / f"frame_{last_idx:03d}.png"
+        if last_frame.exists():
+            for k in range(1, hold_frames + 1):
+                dst = staging_dir / f"frame_{last_idx + k:03d}.png"
+                copy_or_link(last_frame, dst, use_hardlink)
+        print(f"  [SUCCESS] Staged {len(source_files)} + hold({hold_frames}) = {len(list(staging_dir.glob('frame_*.png')))} frames.")
+    else:
+        print(f"  [SUCCESS] Staged {len(source_files)} frames.")
+
+    # copy manifest for provenance
     src_manifest = latest_run_folder / "manifest.json"
     if src_manifest.exists():
         shutil.copy2(src_manifest, staging_dir / "current_manifest.json")
 
     return staging_dir
 
-
-def deploy_latest_frames(view_config: dict, project_path_str: str):
+def deploy_latest_frames(view_config: dict, project_path_str: str, opts: dict):
     project_path = Path(project_path_str)
     key = build_view_key(view_config)
 
-    print(f"\n{'='*20}\n➡️  Deploying '{key}'\n{'='*20}")
-
-    # Locate the parent output directory robustly (handles legacy unicode)
+    print(f"\n{'='*20}\n  Deploying '{key}'\n{'='*20}")
     parent_dir = find_parent_dir_for_key(OUTPUT_BASE_DIR, key)
     if parent_dir is None:
-        print(f"  ❌ Source folder not found for key: {key} (under {OUTPUT_BASE_DIR})")
+        print(f"  [FAIL] Source folder not found for key: {key}")
         return
 
-    staging_dir = stage_from_latest_run(parent_dir)
+    staging_dir = stage_from_latest_run(
+        parent_dir,
+        fps=float(opts.get("fps", 2.0)),
+        hold_last_sec=float(opts.get("hold_last_sec", 0)),
+        hold_mode=str(opts.get("hold_mode", "hardlink"))
+    )
     if staging_dir is None:
         return
 
-    if STAGE_ONLY:
-        print("  [3/4] Stage-only mode: skipping copy to Wallpaper Engine.")
-        print("  [4/4] Cleanup skipped — originals & staging preserved.")
+    if bool(opts.get("stage_only", False)):
+        print("  [3/4] Stage-only: skipping copy to WE.")
+        print("  [4/4] Done.")
         return
 
-    # deploy to Wallpaper Engine materials
-    materials_path = project_path / "materials"
+    materials_path = Path(project_path_str) / "materials"
     if not materials_path.is_dir():
-        print(f"  ❌ 'materials' subfolder not found in {project_path}")
+        print(f"  [FAIL] 'materials' folder not found: {materials_path}")
         return
 
-    print(f"  [3/4] Deploying to Wallpaper Engine...")
+    # optional clean to bust caches
+    if bool(opts.get("clean_materials", False)):
+        for p in materials_path.glob("*.png"):
+            try: p.unlink()
+            except: pass
+
+    print("  [3/4] Copying staged frames to WE materials...")
     copied = 0
-    for new_frame in sorted(staging_dir.glob("frame_*.png")):
-        shutil.copy2(str(new_frame), str(materials_path))  # copy2 preserves mtime
+    for frame in sorted(staging_dir.glob("frame_*.png")):
+        shutil.copy2(str(frame), str(materials_path))
         copied += 1
-    print(f"  ✅ Deployment complete. Copied {copied} frames.")
+    print(f"  [SUCCESS] Copied {copied} frames.")
 
-    # Drop a copy of the current manifest next to the project for reference
+    # manifest next to project (optional)
     try:
-        manifest_in_stage = staging_dir / "current_manifest.json"
-        if manifest_in_stage.exists():
-            shutil.copy2(manifest_in_stage, project_path / "current_manifest.json")
-            print("  ℹ️  Wrote current_manifest.json to project folder.")
+        m = staging_dir / "current_manifest.json"
+        if m.exists():
+            shutil.copy2(m, Path(project_path_str) / "current_manifest.json")
+            print("  ℹ[ALERT]  current_manifest.json written.")
     except Exception as e:
-        print(f"  ⚠️  Could not copy manifest into project: {e}")
+        print(f"  [WARN]  manifest copy failed: {e}")
 
-    print(f"  [4/4] Cleanup skipped — originals & staging preserved.")
-
+    print("  [4/4] Done.")
 
 def main():
-    # load configs
+    runtime_cfg = load_runtime_cfg()
+
     try:
         views = json.loads(VIEWS_JSON_PATH.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        print(f"❌ Missing {VIEWS_JSON_PATH}")
-        return
-    except JSONDecodeError as e:
-        print(f"❌ {VIEWS_JSON_PATH} is not valid JSON: {e}")
-        return
-
+    except (FileNotFoundError, JSONDecodeError) as e:
+        print(f"[FAIL] Problem with {VIEWS_JSON_PATH}: {e}"); return
     try:
         projs_raw = json.loads(PROJECTS_JSON_PATH.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        print(f"❌ Missing {PROJECTS_JSON_PATH}")
-        return
-    except JSONDecodeError as e:
-        print(f"❌ {PROJECTS_JSON_PATH} is not valid JSON: {e}")
-        return
+    except (FileNotFoundError, JSONDecodeError) as e:
+        print(f"[FAIL] Problem with {PROJECTS_JSON_PATH}: {e}"); return
 
-    # normalize project key names using canonicalize (handles µ/μ and other symbols)
-    projects: dict[str, str] = {}
-    for p in projs_raw:
-        name = p.get("view_name_base", "")
-        normalized = canonicalize(name)
-        projects[normalized] = p["project_path"]
+    projects = { canonicalize(p.get("view_name","") or p.get("view_name_base","")): p["project_path"] for p in projs_raw }
 
-    # deploy each matching view
     for view in views:
         key = build_view_key(view)
-        if key in projects:
-            deploy_latest_frames(view, projects[key])
+        proj = projects.get(key) or projects.get(canonicalize(key))
+        if proj:
+            opts = effective_opts(key, runtime_cfg)
+            deploy_latest_frames(view, proj, opts)
         else:
-            # Fallback: try canonicalized form of our own key (defensive)
-            alt_key = canonicalize(key)
-            if alt_key in projects:
-                deploy_latest_frames(view, projects[alt_key])
-            else:
-                print(f"ℹ️  Skipping '{key}' — no matching entry in projects.json")
+            print(f"ℹ[ALERT]  Skip '{key}' — no projects.json entry")
 
-    print("\n✅ All deployment tasks complete.")
-
+    print("\n[SUCCESS] All deployment tasks complete.")
 
 if __name__ == "__main__":
     main()

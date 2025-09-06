@@ -1,0 +1,316 @@
+{
+  "view_key": "GOES-19_East_752W_Full_Disk_Band_13_103_mm_Clean_IR_Longwave_Window",
+  "view": {
+    "sat": "GOES-19 (East; 75.2W)",
+    "sec": "Full Disk",
+    "im": "Band 13: 10.3 µm (\"Clean\" IR Longwave Window)",
+    "num": "60",
+    "step": "10 min"
+  },
+  "source": {
+    "zip_filename": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816021021-20250816121021.zip",
+    "parsed_timestamp": "2025-08-16_02-10-21"
+  },
+  "frames": [
+    {
+      "index": 0,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816021021.png",
+      "standardized": "frame_000.png"
+    },
+    {
+      "index": 1,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816022021.png",
+      "standardized": "frame_001.png"
+    },
+    {
+      "index": 2,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816023021.png",
+      "standardized": "frame_002.png"
+    },
+    {
+      "index": 3,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816024021.png",
+      "standardized": "frame_003.png"
+    },
+    {
+      "index": 4,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816025021.png",
+      "standardized": "frame_004.png"
+    },
+    {
+      "index": 5,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816030021.png",
+      "standardized": "frame_005.png"
+    },
+    {
+      "index": 6,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816031021.png",
+      "standardized": "frame_006.png"
+    },
+    {
+      "index": 7,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816032021.png",
+      "standardized": "frame_007.png"
+    },
+    {
+      "index": 8,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816033021.png",
+      "standardized": "frame_008.png"
+    },
+    {
+      "index": 9,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816034021.png",
+      "standardized": "frame_009.png"
+    },
+    {
+      "index": 10,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816035021.png",
+      "standardized": "frame_010.png"
+    },
+    {
+      "index": 11,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816040021.png",
+      "standardized": "frame_011.png"
+    },
+    {
+      "index": 12,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816041021.png",
+      "standardized": "frame_012.png"
+    },
+    {
+      "index": 13,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816042021.png",
+      "standardized": "frame_013.png"
+    },
+    {
+      "index": 14,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816043021.png",
+      "standardized": "frame_014.png"
+    },
+    {
+      "index": 15,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816044021.png",
+      "standardized": "frame_015.png"
+    },
+    {
+      "index": 16,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816045021.png",
+      "standardized": "frame_016.png"
+    },
+    {
+      "index": 17,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816050021.png",
+      "standardized": "frame_017.png"
+    },
+    {
+      "index": 18,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816051021.png",
+      "standardized": "frame_018.png"
+    },
+    {
+      "index": 19,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816052021.png",
+      "standardized": "frame_019.png"
+    },
+    {
+      "index": 20,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816053021.png",
+      "standardized": "frame_020.png"
+    },
+    {
+      "index": 21,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816054021.png",
+      "standardized": "frame_021.png"
+    },
+    {
+      "index": 22,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816055021.png",
+      "standardized": "frame_022.png"
+    },
+    {
+      "index": 23,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816060021.png",
+      "standardized": "frame_023.png"
+    },
+    {
+      "index": 24,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816061021.png",
+      "standardized": "frame_024.png"
+    },
+    {
+      "index": 25,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816062021.png",
+      "standardized": "frame_025.png"
+    },
+    {
+      "index": 26,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816063021.png",
+      "standardized": "frame_026.png"
+    },
+    {
+      "index": 27,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816064021.png",
+      "standardized": "frame_027.png"
+    },
+    {
+      "index": 28,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816065021.png",
+      "standardized": "frame_028.png"
+    },
+    {
+      "index": 29,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816070021.png",
+      "standardized": "frame_029.png"
+    },
+    {
+      "index": 30,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816071021.png",
+      "standardized": "frame_030.png"
+    },
+    {
+      "index": 31,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816072021.png",
+      "standardized": "frame_031.png"
+    },
+    {
+      "index": 32,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816073021.png",
+      "standardized": "frame_032.png"
+    },
+    {
+      "index": 33,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816074021.png",
+      "standardized": "frame_033.png"
+    },
+    {
+      "index": 34,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816075021.png",
+      "standardized": "frame_034.png"
+    },
+    {
+      "index": 35,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816080021.png",
+      "standardized": "frame_035.png"
+    },
+    {
+      "index": 36,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816081021.png",
+      "standardized": "frame_036.png"
+    },
+    {
+      "index": 37,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816082021.png",
+      "standardized": "frame_037.png"
+    },
+    {
+      "index": 38,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816083021.png",
+      "standardized": "frame_038.png"
+    },
+    {
+      "index": 39,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816084021.png",
+      "standardized": "frame_039.png"
+    },
+    {
+      "index": 40,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816085021.png",
+      "standardized": "frame_040.png"
+    },
+    {
+      "index": 41,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816090021.png",
+      "standardized": "frame_041.png"
+    },
+    {
+      "index": 42,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816091021.png",
+      "standardized": "frame_042.png"
+    },
+    {
+      "index": 43,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816092021.png",
+      "standardized": "frame_043.png"
+    },
+    {
+      "index": 44,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816093021.png",
+      "standardized": "frame_044.png"
+    },
+    {
+      "index": 45,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816094021.png",
+      "standardized": "frame_045.png"
+    },
+    {
+      "index": 46,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816095021.png",
+      "standardized": "frame_046.png"
+    },
+    {
+      "index": 47,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816100021.png",
+      "standardized": "frame_047.png"
+    },
+    {
+      "index": 48,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816101021.png",
+      "standardized": "frame_048.png"
+    },
+    {
+      "index": 49,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816102021.png",
+      "standardized": "frame_049.png"
+    },
+    {
+      "index": 50,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816103021.png",
+      "standardized": "frame_050.png"
+    },
+    {
+      "index": 51,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816104021.png",
+      "standardized": "frame_051.png"
+    },
+    {
+      "index": 52,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816105021.png",
+      "standardized": "frame_052.png"
+    },
+    {
+      "index": 53,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816110021.png",
+      "standardized": "frame_053.png"
+    },
+    {
+      "index": 54,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816111021.png",
+      "standardized": "frame_054.png"
+    },
+    {
+      "index": 55,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816112021.png",
+      "standardized": "frame_055.png"
+    },
+    {
+      "index": 56,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816113021.png",
+      "standardized": "frame_056.png"
+    },
+    {
+      "index": 57,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816114021.png",
+      "standardized": "frame_057.png"
+    },
+    {
+      "index": 58,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816120021.png",
+      "standardized": "frame_058.png"
+    },
+    {
+      "index": 59,
+      "original": "cira-rammb-slider---goes-19---full_disk---band_13-opacity-100---20250816121021.png",
+      "standardized": "frame_059.png"
+    }
+  ]
+}

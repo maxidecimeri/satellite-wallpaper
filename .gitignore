@@ -12,6 +12,7 @@ build/
 .venv/
 env/
 venv/
+satellite-wallpaper-env/
 
 # IDEs and editors
 .idea/

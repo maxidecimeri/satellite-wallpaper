@@ -1,28 +1,55 @@
 # set_static_wallpapers.py
-# Sets per-monitor static wallpapers on Windows (leaves your WE/live monitor untouched)
-# Requires: pip install comtypes
+# Works with either pywin32 (Dispatch) or comtypes (CreateObject).
+# Skips the "live" monitor (from LIVE_MONITOR_INDEX env or runtime_config.json).
 
-import os
-import random
+from __future__ import annotations
+import json, os
 from pathlib import Path
-from datetime import datetime
-from typing import List
+from typing import Optional, List, Tuple
 
-from config_loader import STATIC_DIR  # points to .../static_backgrounds
-# Optional: live monitor index from config; default to last monitor if missing
+# ---- Try pywin32 first; fall back to comtypes ----
+HAVE_PYWIN32 = False
 try:
-    from config_loader import _cfg  # we just peek for 'live_monitor_index'
-    LIVE_MONITOR_INDEX = int(_cfg.get("live_monitor_index", -1))
+    import win32com.client as win32
+    HAVE_PYWIN32 = True
 except Exception:
-    LIVE_MONITOR_INDEX = -1
+    pass
 
-# --- COM setup via comtypes (IDesktopWallpaper) ---
+import ctypes
+from ctypes import POINTER, byref, c_int, c_ulong, c_wchar_p, Structure, wintypes
+
+# comtypes is only required if pywin32 is unavailable
 import comtypes
-from comtypes import GUID, HRESULT, COMMETHOD
-from comtypes.automation import BSTR
-from ctypes import wintypes, POINTER, Structure, c_uint
+from comtypes import GUID, HRESULT, IUnknown, COMMETHOD
+from comtypes.client import CreateObject
 
-# RECT for GetMonitorRECT if you want to inspect geometry (not strictly needed here)
+# ---------------- Config ----------------
+RUNTIME_CONFIG = Path("runtime_config.json")
+
+def _load_runtime_config() -> dict:
+    if RUNTIME_CONFIG.exists():
+        try:
+            return json.loads(RUNTIME_CONFIG.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+def live_monitor_index() -> Optional[int]:
+    env = os.environ.get("LIVE_MONITOR_INDEX")
+    if env and env.strip().isdigit():
+        return int(env.strip())
+    cfg = _load_runtime_config()
+    if isinstance(cfg.get("live_index"), int):
+        return cfg["live_index"]
+    defaults = cfg.get("defaults") or {}
+    if isinstance(defaults.get("live_index"), int):
+        return defaults["live_index"]
+    return None
+
+# ---------------- COM definitions (for comtypes path) ----------------
+CLSID_DesktopWallpaper = GUID("{C2CF3110-460E-4FC1-B9D0-8A1C0C9CC4BD}")
+IID_IDesktopWallpaper  = GUID("{B92B56A9-8B55-4E14-9A89-0199BBB6F93B}")
+
 class RECT(Structure):
     _fields_ = [
         ("left",   wintypes.LONG),
@@ -31,157 +58,128 @@ class RECT(Structure):
         ("bottom", wintypes.LONG),
     ]
 
-# IDesktopWallpaper interface
-# https://learn.microsoft.com/windows/win32/api/shobjidl_core/nn-shobjidl_core-idesktopwallpaper
-class IDesktopWallpaper(comtypes.IUnknown):
-    _iid_ = GUID("{B92B56A9-8B55-4E14-9A89-0199BBB6F93B}")
+DWPOS_CENTER  = 0
+DWPOS_TILE    = 1
+DWPOS_STRETCH = 2
+DWPOS_FIT     = 3
+DWPOS_FILL    = 4
+DWPOS_SPAN    = 5
+
+class IDesktopWallpaper(IUnknown):
+    _iid_ = IID_IDesktopWallpaper
     _methods_ = [
-        # HRESULT SetWallpaper([in] LPCWSTR monitorID, [in] LPCWSTR wallpaper);
-        COMMETHOD([], HRESULT, 'SetWallpaper', (['in'], wintypes.LPCWSTR, 'monitorID'),
-                                             (['in'], wintypes.LPCWSTR, 'wallpaper')),
-        # HRESULT GetWallpaper([in] LPCWSTR monitorID, [out] LPWSTR *wallpaper);
-        COMMETHOD([], HRESULT, 'GetWallpaper', (['in'], wintypes.LPCWSTR, 'monitorID'),
-                                             (['out'], POINTER(BSTR), 'wallpaper')),
-        # HRESULT GetMonitorDevicePathAt([in] UINT monitorIndex, [out] LPWSTR *monitorID);
-        COMMETHOD([], HRESULT, 'GetMonitorDevicePathAt', (['in'], c_uint, 'monitorIndex'),
-                                                    (['out'], POINTER(BSTR), 'monitorID')),
-        # HRESULT GetMonitorDevicePathCount([out] UINT *count);
-        COMMETHOD([], HRESULT, 'GetMonitorDevicePathCount', (['out'], POINTER(c_uint), 'count')),
-        # HRESULT GetMonitorRECT([in] LPCWSTR monitorID, [out] RECT *displayRect);
-        COMMETHOD([], HRESULT, 'GetMonitorRECT', (['in'], wintypes.LPCWSTR, 'monitorID'),
-                                              (['out'], POINTER(RECT), 'displayRect')),
-        # HRESULT SetBackgroundColor([in] COLORREF color);
-        COMMETHOD([], HRESULT, 'SetBackgroundColor', (['in'], wintypes.UINT, 'color')),
-        # HRESULT GetBackgroundColor([out] COLORREF *color);
-        COMMETHOD([], HRESULT, 'GetBackgroundColor', (['out'], POINTER(wintypes.UINT), 'color')),
-        # HRESULT SetPosition([in] DESKTOP_WALLPAPER_POSITION position);
-        COMMETHOD([], HRESULT, 'SetPosition', (['in'], c_uint, 'position')),
-        # HRESULT GetPosition([out] DESKTOP_WALLPAPER_POSITION *position);
-        COMMETHOD([], HRESULT, 'GetPosition', (['out'], POINTER(c_uint), 'position')),
-        # HRESULT SetSlideshow([in] IShellItemArray *items);
-        COMMETHOD([], HRESULT, 'SetSlideshow', (['in'], comtypes.c_void_p, 'items')),
-        # HRESULT GetSlideshow([out] IShellItemArray **items);
-        COMMETHOD([], HRESULT, 'GetSlideshow', (['out'], POINTER(comtypes.c_void_p), 'items')),
-        # HRESULT SetSlideshowOptions([in] DESKTOP_SLIDESHOW_OPTIONS options, [in] UINT slideshowTick);
-        COMMETHOD([], HRESULT, 'SetSlideshowOptions', (['in'], c_uint, 'options'),
-                                                   (['in'], c_uint, 'slideshowTick')),
-        # HRESULT GetSlideshowOptions([out] DESKTOP_SLIDESHOW_OPTIONS *options, [out] UINT *slideshowTick);
-        COMMETHOD([], HRESULT, 'GetSlideshowOptions', (['out'], POINTER(c_uint), 'options'),
-                                                   (['out'], POINTER(c_uint), 'slideshowTick')),
-        # HRESULT AdvanceSlideshow([in] LPCWSTR monitorID, [in] DESKTOP_SLIDESHOW_DIRECTION direction);
-        COMMETHOD([], HRESULT, 'AdvanceSlideshow', (['in'], wintypes.LPCWSTR, 'monitorID'),
-                                                  (['in'], c_uint, 'direction')),
-        # HRESULT GetStatus([out] DESKTOP_SLIDESHOW_STATE *state);
-        COMMETHOD([], HRESULT, 'GetStatus', (['out'], POINTER(c_uint), 'state')),
-        # HRESULT Enable([in] BOOL enable);
-        COMMETHOD([], HRESULT, 'Enable', (['in'], wintypes.BOOL, 'enable')),
+        COMMETHOD([], HRESULT, 'SetWallpaper',
+                  (['in'], c_wchar_p, 'monitorId'),
+                  (['in'], c_wchar_p, 'wallpaper')),
+        COMMETHOD([], HRESULT, 'GetWallpaper',
+                  (['in'], c_wchar_p, 'monitorId'),
+                  (['out'], POINTER(c_wchar_p), 'wallpaper')),
+        COMMETHOD([], HRESULT, 'GetMonitorDevicePathAt',
+                  (['in'], c_ulong, 'monitorIndex'),
+                  (['out'], POINTER(c_wchar_p), 'monitorId')),
+        COMMETHOD([], HRESULT, 'GetMonitorDevicePathCount',
+                  (['out'], POINTER(c_ulong), 'count')),
+        COMMETHOD([], HRESULT, 'GetMonitorRECT',
+                  (['in'], c_wchar_p, 'monitorId'),
+                  (['out'], POINTER(RECT), 'displayRect')),
+        COMMETHOD([], HRESULT, 'SetBackgroundColor',
+                  (['in'], c_ulong, 'color')),
+        COMMETHOD([], HRESULT, 'GetBackgroundColor',
+                  (['out'], POINTER(c_ulong), 'color')),
+        COMMETHOD([], HRESULT, 'SetPosition',
+                  (['in'], c_int, 'position')),
+        COMMETHOD([], HRESULT, 'GetPosition',
+                  (['out'], POINTER(c_int), 'position')),
     ]
 
-CLSID_DesktopWallpaper = GUID("{C2CF3110-460E-4FC1-B9D0-8A1C0C9CC4BD}")
+def _get_dw():
+    """Return a DesktopWallpaper object (pywin32 if available, else comtypes)."""
+    if HAVE_PYWIN32:
+        return ("pywin32", win32.Dispatch("DesktopWallpaper"))
+    # comtypes path
+    comtypes.CoInitialize()
+    try:
+        return ("comtypes", CreateObject(CLSID_DesktopWallpaper, interface=IDesktopWallpaper))
+    except Exception:
+        comtypes.CoUninitialize()
+        raise
 
-DWPOS_CENTER = 0
-DWPOS_TILE   = 1
-DWPOS_STRETCH= 2
-DWPOS_FIT    = 3
-DWPOS_FILL   = 4
-DWPOS_SPAN   = 5  # best for multi-monitor panoramas, but we’re per-monitor here
+# ------------- Backend-agnostic helpers -------------
+def _count_monitors(dw):
+    """pywin32 returns int; comtypes needs byref."""
+    try:
+        # comtypes path (method expects OUT param)
+        cnt = c_ulong(0)
+        dw.GetMonitorDevicePathCount(byref(cnt))
+        return cnt.value
+    except TypeError:
+        # pywin32 path (returns int directly)
+        return int(dw.GetMonitorDevicePathCount())
 
-def get_desktop_wallpaper() -> IDesktopWallpaper:
-    obj = comtypes.client.CreateObject(CLSID_DesktopWallpaper, interface=IDesktopWallpaper)
-    return obj
+def _monitor_path_at(dw, idx: int) -> str:
+    try:
+        # comtypes OUT param
+        mid = c_wchar_p()
+        dw.GetMonitorDevicePathAt(idx, byref(mid))
+        return mid.value
+    except TypeError:
+        # pywin32 direct return
+        return dw.GetMonitorDevicePathAt(idx)
 
-# --- image picking helpers ---
+def _set_wallpaper(dw, monitor_id: str, image_path: str):
+    # Signature is the same for both: (monitorId, path)
+    dw.SetWallpaper(monitor_id, image_path)
+
+# ---------------- Public API ----------------
+def set_wallpapers_for_monitors(paths: List[Path], scale_mode: int = DWPOS_FILL) -> None:
+    """
+    Apply wallpapers across all monitors, skipping the 'live' monitor (index from env/config).
+    """
+    if not paths:
+        print("[INFO] No image paths provided; skipping wallpaper set.")
+        return
+
+    backend, dw = _get_dw()
+    try:
+        # Global position
+        try:
+            dw.SetPosition(scale_mode)
+        except Exception as e:
+            print(f"[WARN] SetPosition failed ({e}); continuing.")
+
+        mcount = _count_monitors(dw)
+        live_idx = live_monitor_index()
+
+        ids: List[Tuple[int, str]] = []
+        for i in range(mcount):
+            if live_idx is not None and i == live_idx:
+                continue
+            ids.append((i, _monitor_path_at(dw, i)))
+
+        imgs = [str(Path(p).resolve()) for p in paths]
+        n = len(imgs)
+        for i, mon_id in ids:
+            _set_wallpaper(dw, mon_id, imgs[i % n])
+
+        print(f"[OK] Applied {len(ids)} wallpapers using {backend} (skipped live index {live_idx}).")
+
+    finally:
+        if backend == "comtypes":
+            try:
+                comtypes.CoUninitialize()
+            except Exception:
+                pass
 
 def time_band_now() -> str:
-    hour = datetime.now().hour
-    if 5 <= hour < 11:
+    from datetime import datetime
+    h = datetime.now().hour
+    if 5 <= h < 12:
         return "morning"
-    if 11 <= hour < 17:
+    if 12 <= h < 17:
         return "afternoon"
-    if 17 <= hour < 22:
-        return "evening"
-    # late night
     return "evening"
 
-def pick_images_for_monitors(static_root: Path, count: int) -> List[Path]:
-    """Pick 'count' images matching time-of-day; if folder sparse, fall back to any."""
-    band = time_band_now()
-    band_dir = static_root / band
-    candidates = []
-    if band_dir.is_dir():
-        candidates = [p for p in band_dir.glob("*") if p.suffix.lower() in {".png", ".jpg", ".jpeg"}]
-    # Optional: at night, sometimes pull from 'space'
-    if not candidates or random.random() < 0.25:
-        space_dir = static_root / "space"
-        if space_dir.is_dir():
-            candidates += [p for p in space_dir.glob("*") if p.suffix.lower() in {".png", ".jpg", ".jpeg"}]
-    # Final fallback: any
-    if not candidates:
-        candidates = [p for p in static_root.rglob("*") if p.suffix.lower() in {".png", ".jpg", ".jpeg"}]
-    random.shuffle(candidates)
-    return candidates[:count]
-
-def main():
-    static_root = Path(STATIC_DIR)
-    if not static_root.is_dir():
-        print(f"❌ STATIC_DIR not found: {static_root}")
-        return
-
-    dw = get_desktop_wallpaper()
-
-    # Enumerate monitors
-    count = c_uint()
-    hr = dw.GetMonitorDevicePathCount(count)
-    if hr:
-        print(f"❌ GetMonitorDevicePathCount failed (HRESULT={hr})")
-        return
-    n = count.value
-    monitor_ids: List[str] = []
-    for i in range(n):
-        bstr = BSTR()
-        dw.GetMonitorDevicePathAt(i, bstr)
-        monitor_ids.append(str(bstr))
-
-    print("[INFO] Monitors (0-based):")
-    for i, mid in enumerate(monitor_ids):
-        print(f"  {i}: {mid}")
-
-    # Decide which monitors to set (skip the live WE monitor)
-    if LIVE_MONITOR_INDEX < 0 or LIVE_MONITOR_INDEX >= n:
-        live_idx = max(0, n - 1)  # default to last monitor if not configured
-        print(f"[WARN] live_monitor_index missing/out of range; defaulting to {live_idx}")
-    else:
-        live_idx = LIVE_MONITOR_INDEX
-
-    targets = [i for i in range(n) if i != live_idx]
-    if not targets:
-        print("[INFO] Only one monitor detected or only live monitor available; nothing to set.")
-        return
-
-    # Pick images
-    imgs = pick_images_for_monitors(static_root, len(targets))
-    if len(imgs) < len(targets):
-        print(f"[WARN] Not enough images found for {len(targets)} monitors; will reuse.")
-        while len(imgs) < len(targets):
-            imgs += imgs
-        imgs = imgs[:len(targets)]
-
-    # Set position style (Fill usually looks best)
-    dw.SetPosition(DWPOS_FILL)
-
-    # Apply per monitor
-    for idx, img in zip(targets, imgs):
-        path = str(img.resolve())
-        monitor_id = monitor_ids[idx]
-        print(f"[APPLY] Monitor {idx} ← {path}")
-        hr = dw.SetWallpaper(monitor_id, path)
-        if hr:
-            print(f"  ⚠️  SetWallpaper failed on monitor {idx} (HRESULT={hr})")
-
-    print("✅ Static wallpapers applied to non-live monitors.")
-
 if __name__ == "__main__":
-    # Lazy import to avoid comtypes import time unless script runs
-    from ctypes import c_uint
-    import comtypes.client
-    main()
+    import sys
+    imgs = [Path(p) for p in sys.argv[1:]]
+    set_wallpapers_for_monitors(imgs)

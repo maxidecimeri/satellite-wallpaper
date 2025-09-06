@@ -5,6 +5,13 @@ import re
 from pathlib import Path
 from playwright.async_api import async_playwright
 from config_loader import OUTPUT_BASE_DIR, HOMEPAGE_URL, build_view_key
+import sys
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 
 VIEWS_JSON_PATH = Path("views_config.json")
 
@@ -71,7 +78,7 @@ async def run_task(view):
         parent_folder_name = build_view_key(view)  # canonical key (handles µ → m, etc.)
         base_output_dir = OUTPUT_BASE_DIR / parent_folder_name
     except KeyError as e:
-        print(f"❌ Skipping view, missing a required key: {e}")
+        print(f"[FAIL] Skipping view, missing a required key: {e}")
         return
 
     print(f"\n{'='*25}\n[START] Processing: {parent_folder_name}\n{'='*25}")
@@ -149,7 +156,7 @@ async def main():
     for view in views:
         await run_task(view)
 
-    print("\n✅ All views processed.")
+    print("\n[OK] All views processed.")
 
 if __name__ == "__main__":
     asyncio.run(main())
