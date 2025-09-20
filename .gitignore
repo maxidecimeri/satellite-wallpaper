@@ -42,3 +42,6 @@ static_backgrounds/
 
 #past versions
 Archive/
+
+#local image repo
+/processed-images/
